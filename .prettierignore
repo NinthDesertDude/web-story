@@ -1,6 +1,0 @@
-build
-node_modules
-.github
-
-# Prettier fails to recognize triple-slash dependency resolution
-/src/react-app-env.d.ts
