@@ -1,0 +1,9 @@
+{
+  "extends": [
+    "react-app"
+  ],
+  "rules": {
+    "no-loop-func": 0,
+    "linebreak-style": 0
+  }
+}
