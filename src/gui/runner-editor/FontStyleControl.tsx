@@ -1,4 +1,4 @@
-import { Label, Slider } from "@fluentui/react";
+import { Slider } from "@fluentui/react";
 import * as React from "react";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
@@ -49,10 +49,6 @@ type CombinedProps = FontStyleControlOwnProps &
   ReturnType<typeof mapDispatchToProps>;
 
 export class FontStyleControlC extends React.Component<FontStyleControlOwnProps> {
-  constructor(props: FontStyleControlOwnProps) {
-    super(props);
-  }
-
   /** Renders color boxes to adjust the light/dark theme settings for one of the override styles. */
   public render() {
     const combinedProps = this.props as CombinedProps;

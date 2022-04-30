@@ -7,7 +7,6 @@ const mapStateToProps = (state: IRootState) => {
 };
 
 type EditorSettingsOwnProps = {};
-type CombinedProps = EditorSettingsOwnProps & ReturnType<typeof mapStateToProps>;
 
 export class EditorSettingsC extends React.Component<EditorSettingsOwnProps> {
   public render() {
