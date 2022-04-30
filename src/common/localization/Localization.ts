@@ -63,6 +63,8 @@ export interface ILocalizedStrings {
   ApplicationName: string;
   ApplicationNameAndVersion: (appName: string, appVersion: string) => string;
   EditorPlay: string;
+  ErrorNoIndexedDBSupport: string;
+  ErrorTitleGenericFatal: string;
   LanguageCodeName: string;
   MenuBack: string;
   MenuFile: string;

@@ -16,11 +16,13 @@ import {
   currentRunnerSettings,
 } from "./gui/editor-settings-page/currentRunnerSettings.reducers";
 import { IRunnerSettingsState, runnerSettings } from "./gui/runner-settings-page/runnerSettings.reducers";
+import { ITopLevelErrorsState, topLevelErrors } from "./common/errors/topLevelErrors.reducers";
 
 /** All reducers. */
 export interface IRootState {
   persistence: IPersistenceState;
   settings: ISettingState;
+  topLevelErrors: ITopLevelErrorsState;
   viewEdit: IViewEditState;
   authorStorySettings: IAuthorStorySettingsState;
   currentRunnerSettings: ICurrentRunnerSettingsState;
@@ -31,6 +33,7 @@ export interface IRootState {
 const rootReducer = combineReducers({
   persistence,
   settings,
+  topLevelErrors,
   viewEdit,
   authorStorySettings,
   currentRunnerSettings,

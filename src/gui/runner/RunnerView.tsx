@@ -1,5 +1,7 @@
 import * as React from "react";
 import { connect } from "react-redux";
+import { Dispatch } from "redux";
+import { dispatchAddError } from "../../common/errors/topLevelErrors.reducers";
 import { StoryInterpreterC, StoryInterpreter } from "../../parse-story/storyInterpreter";
 import { parseStory } from "../../parse-story/storyParser";
 import { IRootState } from "../../store";
@@ -11,6 +13,12 @@ const mapStateToProps = (state: IRootState) => {
   };
 };
 
+const mapDispatchToProps = (dispatch: Dispatch) => {
+  return {
+    dispatchAddError: dispatchAddError(dispatch),
+  };
+};
+
 type RunnerViewOwnProps = {
   /**
    * If provided, parses this story instead of the current one, for e.g. live previews in the UI that won't conflict
@@ -19,7 +27,7 @@ type RunnerViewOwnProps = {
   storyToParseOverride?: string;
 };
 
-type CombinedProps = RunnerViewOwnProps & ReturnType<typeof mapStateToProps>;
+type CombinedProps = RunnerViewOwnProps & ReturnType<typeof mapStateToProps> & ReturnType<typeof mapDispatchToProps>;
 
 export class RunnerViewC extends React.Component<RunnerViewOwnProps> {
   private interpreterRef: StoryInterpreterC | null = null;
@@ -29,7 +37,7 @@ export class RunnerViewC extends React.Component<RunnerViewOwnProps> {
   }
 
   public render() {
-    return <StoryInterpreter ref={this.setInterpreterRef} />;
+    return <StoryInterpreter debugging={true} ref={this.setInterpreterRef} />;
   }
 
   private setInterpreterRef = (ref: StoryInterpreterC | null) => {
@@ -49,12 +57,14 @@ export class RunnerViewC extends React.Component<RunnerViewOwnProps> {
       parseStory(this.props.storyToParseOverride ?? (this.props as CombinedProps).storyToParse, this.interpreterRef);
     } catch (ex) {
       if (typeof ex === "string") {
-        this.interpreterRef.setErrorMessage(ex);
+        (this.props as CombinedProps).dispatchAddError("unexpected error while parsing: " + ex);
       } else if (ex instanceof Error) {
-        this.interpreterRef.setErrorMessage(ex.message);
+        (this.props as CombinedProps).dispatchAddError("unexpected error while parsing: " + ex.message);
+      } else if (ex instanceof Object) {
+        (this.props as CombinedProps).dispatchAddError("unexpected error while parsing: " + ex.toString());
       }
     }
   }
 }
 
-export const RunnerView = connect(mapStateToProps)(RunnerViewC);
+export const RunnerView = connect(mapStateToProps, mapDispatchToProps)(RunnerViewC);

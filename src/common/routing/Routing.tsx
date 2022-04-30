@@ -15,6 +15,7 @@ import { EditorSettings } from "../../gui/editor-settings-page/EditorSettings";
 import { loadFromLocalStorage, LocalStorageSaveHandler } from "../storage/LocalStorageSaveHandler";
 import { CommandHandler } from "../commands/CommandHandler";
 import { dispatchSetFromLocalStorage } from "../storage/persistence.reducers";
+import { TopLevelErrors } from "../errors/TopLevelErrors";
 
 export const routes = {
   base: "/",
@@ -82,6 +83,7 @@ export class RoutingC extends React.Component<RoutingOwnProps> {
         <LocalStorageSaveHandler />
         <CommandHandler />
         <MenuBar />
+        <TopLevelErrors />
         <Switch>
           <Route path={routes.base} exact={true} component={Welcome} />
           <Route path={routes.edit} exact={true} component={RunnerEditorView} />

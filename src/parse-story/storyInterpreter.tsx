@@ -16,7 +16,12 @@ import { IRootState } from "../store";
 import { connect } from "react-redux";
 import { dispatchRerenderStory } from "../gui/editor/viewedit.reducers";
 import { Dispatch } from "redux";
-import { runnerWrapperStyle, runnerOutputWrapperStyle, fallbackFontStack } from "../common/styles/controlStyles";
+import {
+  runnerWrapperStyle,
+  runnerOutputWrapperStyle,
+  fallbackFontStack,
+  errorMessageBarStyle,
+} from "../common/styles/controlStyles";
 import { ThemeTypes } from "../common/themes";
 import { ActionButton } from "@fluentui/react/lib/components/Button/ActionButton/ActionButton";
 import { MessageBarType } from "@fluentui/react/lib/components/MessageBar/MessageBar.types";
@@ -34,6 +39,7 @@ import { Random } from "../common/random";
 import { fallbackElementType, getTextStyle } from "../common/styles/interpreterStyles";
 import { TextField } from "@fluentui/react/lib/components/TextField/TextField";
 import { getStrings } from "../common/localization/Localization";
+import { dispatchAddError } from "../common/errors/topLevelErrors.reducers";
 
 // TODO: localize strings in this file.
 
@@ -73,6 +79,7 @@ const mapStateToProps = (state: IRootState) => {
 
 const mapDispatchToProps = (dispatch: Dispatch) => {
   return {
+    dispatchAddError: dispatchAddError(dispatch),
     dispatchRerenderStory: dispatchRerenderStory(dispatch),
     dispatchSetAuthorStoryRunnerStyles: dispatchSetAuthorStoryRunnerStyles(dispatch),
     dispatchSetTempStoryRunnerOptions: dispatchSetTempStoryRunnerOptions(dispatch),
@@ -110,7 +117,10 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
   private entries: IPageDictionary = {};
 
   /** An optional error message that displays in a top banner when non-empty. */
-  private errorMessage = "";
+  private errorMessages: string[] = [];
+
+  /** Unique render key per error message. */
+  private errorMessagesGUID = 0;
 
   /** Stores the current page by name. */
   private fork = "";
@@ -330,7 +340,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
     // Gets the nodes to process, if possible.
     tree = this.entries[this.fork];
     if (tree === undefined) {
-      this.setErrorMessage("Interpreter: fork '" + this.fork + "' not found.");
+      this.addErrorMessage("Interpreter: fork '" + this.fork + "' not found.");
       return;
     }
 
@@ -396,16 +406,16 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
         // Stores the color to be created.
         let color = "";
         if (!colorRegex.test(input)) {
-          this.setErrorMessage(
-            "Interpreter: In the line '" +
-              line +
-              "', color must be given in hex format. It can only include numbers 1-9 and upper or lowercase a-f."
+          this.addErrorMessage(
+            `Line ${
+              i + 1
+            }: the color "${input}" is formatted wrong. It should only have numbers 1-9 and upper or lowercase a-f.`
           );
         } else if (input.length !== 6 && input.length !== 3) {
-          this.setErrorMessage(
-            "Interpreter: In the line '" +
-              line +
-              "', color must be given in hex format using 3 or 6 digits. For example, f00 or 8800f0."
+          this.addErrorMessage(
+            `Line ${
+              i + 1
+            }: the color "${input}" is formatted wrong. It should only have 3 or 6 digits. For example, f00 or 8800f0.`
           );
         } else if (input.length === 3 || input.length === 6) {
           color = input.substring(0, input.length);
@@ -453,14 +463,18 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
         }
       } else if (line.startsWith("output-font-size") || line.startsWith("option-font-size")) {
         if (!numberRegex.test(input)) {
-          this.setErrorMessage("Interpreter: In line '" + line + "', a number must be specified after the option.");
+          this.addErrorMessage(
+            `Line ${
+              i + 1
+            }: the size "${input}" needs to be just a number. Scientific notation or +- signs aren't allowed.`
+          );
           continue;
         }
 
         let number = parseFloat(input);
 
         if (number <= 0) {
-          this.setErrorMessage("Interpreter: In line '" + line + "', numbers must be greater than zero.");
+          this.addErrorMessage("Interpreter: In line '" + line + "', numbers must be greater than zero.");
           continue;
         }
 
@@ -507,10 +521,21 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
       </div>,
     ];
 
-    const errorMessage =
-      this.props.debugging && this.errorMessage !== "" ? (
-        <MessageBar messageBarType={MessageBarType.error}>{this.errorMessage}</MessageBar>
-      ) : undefined;
+    // Appends all error messages into one, if any.
+    let error: React.ReactNode;
+    let errorMessages: JSX.Element[] = [];
+    if (this.props.debugging && this.errorMessages.length !== 0) {
+      for (let i = 0; i < this.errorMessages.length; i++) {
+        errorMessages.push(<div key={`story-error-message-${this.errorMessagesGUID}`}>{this.errorMessages[i]}</div>);
+        this.errorMessagesGUID++;
+      }
+
+      error = (
+        <MessageBar styles={errorMessageBarStyle} messageBarType={MessageBarType.error}>
+          {errorMessages}
+        </MessageBar>
+      );
+    }
 
     const textbox = !this.textboxHidden ? (
       <TextField
@@ -526,15 +551,10 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
     return (
       <div className={runnerWrapperStyle}>
         <div className={runnerOutputWrapperStyle}>{allOutput}</div>
-        {errorMessage}
+        {error}
         {textbox}
       </div>
     );
-  }
-
-  /** Saves the current progress to local storage if possible. */
-  public saveFile() {
-    // TODO: implement.
   }
 
   /** For internal use. Sets the entries usually given by the parser. */
@@ -548,12 +568,11 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
     this.log = [];
     this.options = [];
     this.entries = entries;
-    this.errorMessage = "";
 
     const entriesKeys = Object.keys(this.entries);
 
     if (entriesKeys.length === 0) {
-      this.setErrorMessage(
+      this.addErrorMessage(
         "Interpreter: cannot play story. It contains no forks. Use @ at the beginning of a line to denote an fork."
       );
     } else {
@@ -566,8 +585,13 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
   }
 
   /** Sets or clears an error message. */
-  public setErrorMessage(error: string | undefined) {
-    this.errorMessage = error ?? "";
+  public addErrorMessage(error: string | undefined) {
+    if (error === undefined) {
+      this.errorMessages = [];
+    } else {
+      this.errorMessages.push(error);
+    }
+
     this.refreshInterpreterGui();
   }
 
@@ -664,33 +688,33 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
 
     // There should be at least one word after 'if'.
     if (words.length === 0) {
-      this.setErrorMessage("The line if '" + condition + "' is incorrectly formatted.");
+      this.addErrorMessage("The line if '" + condition + "' is incorrectly formatted.");
       return false; // Skips ifs with invalid syntax.
     }
 
     //#region Timers. Syntax: if timer is num
     if (words.length > 1 && words[0] === "timer" && words[1] === "is") {
       if (words.length < 2) {
-        this.setErrorMessage("The timer must be set with a time specified in seconds.");
+        this.addErrorMessage("The timer must be set with a time specified in seconds.");
         return false;
       }
 
       // The third word must be a number.
       if (!numberRegex.test(words[2])) {
-        this.setErrorMessage("Interpreter: In line '" + condition + "', the third word must be numeric.");
+        this.addErrorMessage("Interpreter: In line '" + condition + "', the third word must be numeric.");
         return false;
       }
 
       const number = parseFloat(words[2]);
 
       if (isNaN(number) || !isFinite(number)) {
-        this.setErrorMessage("Interpreter: In line '" + condition + "', the time must be numeric and not too large.");
+        this.addErrorMessage("Interpreter: In line '" + condition + "', the time must be numeric and not too large.");
         return false;
       }
 
       // The number must be positive.
       if (number <= 0) {
-        this.setErrorMessage("Interpreter: In line '" + condition + "', the time must be positive and non-zero.");
+        this.addErrorMessage("Interpreter: In line '" + condition + "', the time must be positive and non-zero.");
         return false;
       }
 
@@ -729,7 +753,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
       query = this.escapeText(query.toLowerCase().trim(), true);
 
       if (query === "") {
-        this.setErrorMessage(
+        this.addErrorMessage(
           "Interpreter: In the line 'if " +
             condition +
             "', at least one word to look for must be specified after 'pick'."
@@ -935,10 +959,13 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
       try {
         result = exprParser.eval(words.join(" "));
       } catch (e) {
-        if (e instanceof Error) {
-          this.setErrorMessage(e.message);
-        } else {
-          this.setErrorMessage(e);
+        if (typeof e === "string") {
+          combinedProps.dispatchAddError(e);
+          this.addErrorMessage("Interpreter: " + e);
+        } else if (e instanceof Error) {
+          this.addErrorMessage("Interpreter: " + e.message);
+        } else if (e instanceof Object) {
+          this.addErrorMessage("Interpreter: " + e.toString());
         }
 
         return false;
@@ -948,7 +975,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
       if (result === "true" || result === "false") {
         return result === "true";
       } else {
-        this.setErrorMessage(
+        this.addErrorMessage(
           "Interpreter: In the line 'if " +
             words.join(" ") +
             "', the expression must be boolean (true or false), but was " +
@@ -998,13 +1025,13 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
 
         // Handles having no hyperlink or display name.
         if (forkName === "") {
-          this.setErrorMessage("Interpreter: there was no fork name given to option '" + displayName + "'.");
+          this.addErrorMessage("Interpreter: there was no fork name given to option '" + displayName + "'.");
         } else if (displayName.trim() === "") {
-          this.setErrorMessage(
+          this.addErrorMessage(
             "Interpreter: the option linking to '" + forkName + "' has no displayable text specified."
           );
         } else if (this.entries[forkName] === undefined) {
-          this.setErrorMessage(
+          this.addErrorMessage(
             "Interpreter: the fork in the option '" + displayName + "@" + forkName + "' doesn't exist."
           );
         } else {
@@ -1028,9 +1055,9 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
 
         // Handles having no hyperlink or display name.
         if (forkName === "") {
-          this.setErrorMessage("Interpreter: there was no fork name given to option '" + displayName + "'.");
+          this.addErrorMessage("Interpreter: there was no fork name given to option '" + displayName + "'.");
         } else if (displayName.trim() === "") {
-          this.setErrorMessage(
+          this.addErrorMessage(
             "Interpreter: the option linking to '" + forkName + "' has no displayable text specified."
           );
         } else {
@@ -1050,7 +1077,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
         let output = textLeft.substring(lbPos, rbPos + 1);
 
         if (rbPos < lbPos) {
-          this.setErrorMessage("Interpreter: In the line '" + line + "', right braces should follow left braces. ");
+          this.addErrorMessage("Interpreter: In the line '" + line + "', right braces should follow left braces. ");
 
           // Skips the unprocessable line.
           textLeft = textLeft.substring(textLeft.indexOf("\n") + 1);
@@ -1135,9 +1162,9 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
               result = exprParser.eval(rhs.join(" "));
             } catch (e) {
               if (e instanceof Error) {
-                this.setErrorMessage("Interpreter: In the line '" + line + "', " + e.message);
+                this.addErrorMessage("Interpreter: In the line '" + line + "', " + e.message);
               } else {
-                this.setErrorMessage("Interpreter: In the line '" + line + ", " + e);
+                this.addErrorMessage("Interpreter: In the line '" + line + ", " + e);
               }
             }
 
@@ -1151,7 +1178,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
               if (numberRegex.test(result)) {
                 resultVal = parseFloat(result);
               } else {
-                this.setErrorMessage(
+                this.addErrorMessage(
                   "Interpreter: In the line '" +
                     line +
                     "', the expression " +
@@ -1168,7 +1195,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
               this.variables[lhs[0]] = resultVal as number | boolean;
             } else {
               if (singleDigitRegex.test(lhs[0][0]) || exprParser.getTokens().some((o) => o.strForm === lhs[0])) {
-                this.setErrorMessage(
+                this.addErrorMessage(
                   "Interpreter: In the line '" +
                     line +
                     "', the variable '" +
@@ -1180,7 +1207,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
               }
             }
           } else {
-            this.setErrorMessage(
+            this.addErrorMessage(
               "Interpreter: In the line '" +
                 line +
                 ", the phrase " +
@@ -1209,7 +1236,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
                   (lhs.length > 0 && singleDigitRegex.test(lhs[0][0])) ||
                   exprParser.getTokens().some((tok) => tok.strForm === lhsBool)
                 ) {
-                  this.setErrorMessage(
+                  this.addErrorMessage(
                     "Interpreter: In the line '" +
                       line +
                       "', the variable '" +
@@ -1229,7 +1256,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
                   (lhs.length > 0 && singleDigitRegex.test(lhs[0][0])) ||
                   exprParser.getTokens().some((tok) => tok.strForm === lhs[0])
                 ) {
-                  this.setErrorMessage(
+                  this.addErrorMessage(
                     "Interpreter: In the line '" +
                       line +
                       "', the variable '" +
@@ -1250,9 +1277,9 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
                 result = exprParser.eval(lhs.join(" "));
               } catch (e) {
                 if (e instanceof Error) {
-                  this.setErrorMessage("Interpreter: In the line '" + line + "', " + e.message);
+                  this.addErrorMessage("Interpreter: In the line '" + line + "', " + e.message);
                 } else {
-                  this.setErrorMessage("Interpreter: In the line '" + line + "', " + e);
+                  this.addErrorMessage("Interpreter: In the line '" + line + "', " + e);
                 }
               }
 
@@ -1266,7 +1293,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
                 if (numberRegex.test(result)) {
                   resultVal = parseFloat(result);
                 } else {
-                  this.setErrorMessage(
+                  this.addErrorMessage(
                     "Interpreter: In the line '" +
                       line +
                       "', the expression " +
@@ -1280,12 +1307,12 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
 
               this.variables[lhs[0]] = resultVal as number | boolean;
             } else {
-              this.setErrorMessage(
+              this.addErrorMessage(
                 "Interpreter: In the line '" + line + "', the variable " + lhs[0] + " doesn't exist yet."
               );
             }
           } else {
-            this.setErrorMessage(
+            this.addErrorMessage(
               "Interpreter: In the line '" +
                 line +
                 "', you need to provide a variable name to set, using syntax like set a, set !a, or a mathematical expression."
@@ -1309,10 +1336,10 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
           if (this.variables[words[1]] !== undefined) {
             this.content.push(this.addOutput(this.variables[words[1]].toString()));
           } else {
-            this.setErrorMessage("Interpreter: In the line '" + line + "', variable " + words[1] + " does not exist.");
+            this.addErrorMessage("Interpreter: In the line '" + line + "', variable " + words[1] + " does not exist.");
           }
         } else {
-          this.setErrorMessage("Interpreter: In the line '" + line + "', only one word can follow 'get'.");
+          this.addErrorMessage("Interpreter: In the line '" + line + "', only one word can follow 'get'.");
         }
 
         // Deletes the line just processed.
@@ -1337,7 +1364,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
           this.stopEvaluation = true;
           return;
         } else {
-          this.setErrorMessage(
+          this.addErrorMessage(
             "Interpreter: In the line '" +
               textLeft +
               "', cannot navigate to fork '" +
@@ -1360,13 +1387,13 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
       else if (textLeft.startsWith("color")) {
         let color = line.substring(5).trim().toLowerCase();
         if (!colorRegex.test(color)) {
-          this.setErrorMessage(
+          this.addErrorMessage(
             "Interpreter: In the line '" +
               line +
               "', color must be given in hex format. It can only include numbers 1-9 and upper or lowercase a-f."
           );
         } else if (color.length !== 6 && color.length !== 3) {
-          this.setErrorMessage(
+          this.addErrorMessage(
             "Interpreter: In the line '" +
               line +
               "', color must be given in hex format using 3 or 6 digits. For example, f00 or 8800f0."
@@ -1387,7 +1414,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
 
       // Anything left is an error.
       else {
-        this.setErrorMessage(
+        this.addErrorMessage(
           "Interpreter: In the line '" +
             line +
             "', unexpected symbols encountered. Ensure all output text is wrapped in single braces and there are no extra braces inside."
@@ -1406,7 +1433,7 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
     this.currentOptionStyles = {};
     this.currentOptionHighlightStyles = {};
     this.currentOutputStyles = {};
-    this.errorMessage = "";
+    this.errorMessages = [];
     this.fork = "";
     this.log = [];
     this.options = [];
@@ -1477,6 +1504,6 @@ export class StoryInterpreterC extends React.Component<StoryInterpreterOwnProps>
   }
 }
 
-export const StoryInterpreter = connect(mapStateToProps, mapDispatchToProps, undefined, {
+export const StoryInterpreter = connect(mapStateToProps, mapDispatchToProps, null, {
   forwardRef: true,
 })(StoryInterpreterC);

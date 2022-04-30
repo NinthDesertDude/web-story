@@ -3,6 +3,8 @@ import { IStyle, ITheme, mergeStyles } from "@fluentui/react/lib/Styling";
 import { IDropdownStyles } from "@fluentui/react/lib/components/Dropdown/Dropdown.types";
 import { ICommandBarStyles } from "@fluentui/react/lib/components/CommandBar/CommandBar.types";
 import { IIconStyles } from "@fluentui/react/lib/components/Icon/Icon.types";
+import { IMessageBarStyles } from "@fluentui/react";
+import React from "react";
 
 /**
  * Returns a style for a dropdown in the command bar. If there are items to the right, renders a
@@ -111,6 +113,13 @@ export const editorTextAreaStyle = (theme: ITheme): React.CSSProperties => {
   };
 };
 
+/** Returns a style for the error message bars at top-level and for the interpreter. */
+export const errorMessageBarStyle: IMessageBarStyles = {
+  root: {
+    overflowY: "auto",
+  },
+};
+
 /** Fonts to use in case other fonts are not available. */
 export const fallbackFontStack = "Calibri, Times New Roman, Courier New, sans-serif";
 
@@ -173,4 +182,12 @@ export const welcomeButtonStyle = (theme: ITheme): IButtonStyles => {
       },
     ],
   };
+};
+
+export const dialogErrorIconStyle = (theme: ITheme) => {
+  return mergeStyles({
+    ...theme.fonts.medium,
+    color: theme.semanticColors.errorIcon,
+    padding: "0.25rem",
+  });
 };

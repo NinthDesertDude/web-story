@@ -59,9 +59,11 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
   const entryPositions: number[] = [];
   const newlineSplitStory = story.split("\n");
 
-  if (newlineSplitStory.length === 0) {
+  if (story === "") {
     interpreter?.setEntries({});
-    interpreter?.setErrorMessage("Parser: Story is blank. The story must not be blank to parse it.");
+    interpreter?.addErrorMessage(
+      "This is the output window. Type story content to see it appear here when you click play!"
+    );
   }
 
   // Finds fork header positions, normalizes line endings, and removes excess space.
@@ -88,7 +90,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
   for (let i = 0; i < entryPositions.length; i++) {
     // Prevents unnamed entries.
     if (newlineSplitStory[entryPositions[i]].length < 2) {
-      interpreter?.setErrorMessage(
+      interpreter?.addErrorMessage(
         "Parser: Entry" + newlineSplitStory[entryPositions[i]] + "must be at least 1 character long."
       );
 
@@ -115,7 +117,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
     entryName = entryName.replace(/\s+/g, "").toLowerCase();
 
     if (entries[entryName] !== undefined) {
-      interpreter?.setErrorMessage(`Parser: Entry called '${entryName}' already exists.`);
+      interpreter?.addErrorMessage(`Parser: Entry called '${entryName}' already exists.`);
     } else {
       entries[entryName] = entry;
     }
@@ -192,7 +194,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
 
     // Ensures the number of if and endif statements match.
     if (ifs.length !== endifs.length) {
-      interpreter?.setErrorMessage(
+      interpreter?.addErrorMessage(
         `Parser: found ${ifs.length} if tokens, but ${endifs.length} ` +
           "endif tokens. Ifs and endifs must match in number."
       );
@@ -262,7 +264,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
           const prevElemEnd = prevElemBegin + prevElemCond.length;
 
           if (elemBegin - prevElemEnd < 0) {
-            interpreter?.setErrorMessage(
+            interpreter?.addErrorMessage(
               `Parser: In '${text.substring(prevElemBegin)}', cannot specify multiple if tokens on one line.`
             );
 
@@ -306,7 +308,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
         // The parser always returns since it cannot continue.
         if (depth < 0) {
           interpreter?.setEntries({});
-          interpreter?.setErrorMessage("Parser: an extra endif token was encountered (if/endif # " + (j + 1) + ").");
+          interpreter?.addErrorMessage("Parser: an extra endif token was encountered (if/endif # " + (j + 1) + ").");
 
           return;
         }
@@ -318,7 +320,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
         // Determines if the length is negative.
         const prevElemEnd = prevElemBegin + prevElemCond.length;
         if (elemBegin - prevElemEnd < 0) {
-          interpreter?.setErrorMessage(
+          interpreter?.addErrorMessage(
             "Parser: In '" + text.substring(prevElemBegin) + "', cannot specify multiple endif tokens on one line."
           );
 
@@ -336,7 +338,7 @@ export function parseStory(story: string, interpreter: StoryInterpreterC | null,
           node = node.parent;
         } else {
           interpreter?.setEntries({});
-          interpreter?.setErrorMessage("Parser: an extra endif token was encountered (endif #" + j + ").");
+          interpreter?.addErrorMessage("Parser: an extra endif token was encountered (endif #" + j + ").");
 
           return;
         }

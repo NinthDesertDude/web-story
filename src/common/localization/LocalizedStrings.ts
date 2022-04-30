@@ -8,6 +8,8 @@ export const localizedStrings: ILocalizedStringSets = {
     ApplicationName: "Web Story",
     ApplicationNameAndVersion: (appName: string, appVersion: string) => `${appName} version ${appVersion}`,
     EditorPlay: "Play",
+    ErrorNoIndexedDBSupport: "Web Story won't work in your browser because it doesn't support IndexedDB.",
+    ErrorTitleGenericFatal: "Something went wrong",
     LanguageCodeName: "English (United States)",
     MenuBack: "Back",
     MenuFile: "File",
