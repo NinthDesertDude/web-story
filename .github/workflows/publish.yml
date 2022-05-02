@@ -19,7 +19,7 @@ jobs:
           yarn run build
 
       - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@4.3.3
+        uses: JamesIves/github-pages-deploy-action@360c8e75d0ee81732d0a5675c71e51b569df2ee8 # version 4.3.0. It has trouble resolving by version number, so providing entire commit hash.
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: gh-pages # The branch the action should deploy to.
